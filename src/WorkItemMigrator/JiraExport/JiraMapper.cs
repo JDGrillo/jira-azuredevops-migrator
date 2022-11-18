@@ -304,7 +304,7 @@ namespace JiraExport
 
             return new WiRevision()
             {
-                ParentOriginId = r.ParentItem.Key,
+                ParentOriginId = r.ParentItem.Parent,
                 Index = r.Index,
                 Time = r.Time,
                 Author = MapUser(r.Author),
