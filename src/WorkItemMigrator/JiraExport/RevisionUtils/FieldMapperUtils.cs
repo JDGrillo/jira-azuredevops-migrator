@@ -130,6 +130,22 @@ namespace JiraExport
                 return string.Join(";", tags);
         }
 
+        public static object MapComponents(string components)
+        {
+            if (components == null)
+                throw new ArgumentNullException(nameof(components));
+
+            if (string.IsNullOrWhiteSpace(components))
+                return "Birth";
+
+            //var tags = components.Replace(' ', '_');
+            var tags = components + ";Birth";
+            if (!tags.Any())
+                return string.Empty;
+            else
+                return string.Join(";", tags);
+        }
+
         public static object MapArray(string field)
         {
             if (field == null)

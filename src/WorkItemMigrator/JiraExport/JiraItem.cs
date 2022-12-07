@@ -105,6 +105,10 @@ namespace JiraExport
 
                         UndoAttachmentChange(attachmentChange, attachments);
                     }
+                    else if (item.Field == "Component")
+                    {
+                        continue;
+                    }
                     else
                     {
                         var (fieldref, from, to) = TransformFieldChange(item, jiraProvider);
@@ -409,6 +413,12 @@ namespace JiraExport
                 else if (type == Newtonsoft.Json.Linq.JTokenType.Object && prop.Value["value"] != null)
                 {
                     value = prop.Value["value"].ToString();
+                }
+                else if (prop.Name == "components")
+                {
+                    value = string.Join(";", prop.Value.Select(st => st.ExValue<string>("$.name")).ToList());
+                    if (value == "")
+                        value = "Birth";
                 }
 
                 if (value != null)
