@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using System.Text.RegularExpressions;
 using Common.Config;
 
 using Migration.Common;
@@ -242,6 +242,7 @@ namespace JiraExport
             foreach (var att in rev.AttachmentActions)
             {
                 var change = att.ChangeType == RevisionChangeType.Added ? ReferenceChangeType.Added : ReferenceChangeType.Removed;
+                att.Value.Filename = Regex.Replace(att.Value.Filename.Trim(), "[^A-Za-z0-9_. ]+", "");
 
                 var wiAtt = new WiAttachment()
                 {

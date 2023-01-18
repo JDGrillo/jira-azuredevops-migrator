@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web;
+using Markdig;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.WebApi.Patch;
@@ -472,18 +473,25 @@ namespace WorkItemImport
             // Save attachments
             foreach (WiAttachment attachment in rev.Attachments)
             {
-                if (attachment.Change == ReferenceChangeType.Added)
+                try
                 {
-                    AddSingleAttachmentToWorkItemAndSave(attachment, wi, rev.Time.AddMilliseconds(5), rev.Author);
-                }
-                else if (attachment.Change == ReferenceChangeType.Removed)
-                {
-                    RemoveSingleAttachmentFromWorkItemAndSave(attachment, wi, rev.Time.AddMilliseconds(5), rev.Author);
-                }
+                    if (attachment.Change == ReferenceChangeType.Added)
+                    {
+                        AddSingleAttachmentToWorkItemAndSave(attachment, wi, rev.Time.AddMilliseconds(5), rev.Author);
+                    }
+                    else if (attachment.Change == ReferenceChangeType.Removed)
+                    {
+                        RemoveSingleAttachmentFromWorkItemAndSave(attachment, wi, rev.Time.AddMilliseconds(5), rev.Author);
+                    }
 
-                // The work item ChangeDate is altered when saving the attachment, make sure the Revision time does too.
-                // Otherwise it will not be an increased ChangedDate and we'll get an exception
-                rev.Time = (DateTime)wi.Fields[WiFieldReference.ChangedDate];
+                    // The work item ChangeDate is altered when saving the attachment, make sure the Revision time does too.
+                    // Otherwise it will not be an increased ChangedDate and we'll get an exception
+                    rev.Time = (DateTime)wi.Fields[WiFieldReference.ChangedDate];
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(ex, $"Failed to import attachment '{attachment.ToString()}'.");
+                }
             }
         }
 
@@ -505,9 +513,9 @@ namespace WorkItemImport
                 }.Contains(key))
                     continue;
 
-                object val = wi.Fields[key];
+                    object val = wi.Fields[key];
 
-                patchDocument.Add(
+                    patchDocument.Add(
                     new JsonPatchOperation()
                     {
                         Operation = Operation.Add,
@@ -515,8 +523,8 @@ namespace WorkItemImport
                         Value = val
                     }
                 );
-            }
-
+                }
+                
             try
             {
                 if (wi.Id.HasValue)
@@ -555,7 +563,7 @@ namespace WorkItemImport
             {
                 var fileName = att.FilePath.Split('\\')?.Last() ?? string.Empty;
                 var encodedFileName = HttpUtility.UrlEncode(fileName);
-                if (textField.Contains(fileName) || textField.IndexOf(encodedFileName, StringComparison.OrdinalIgnoreCase) >= 0 || textField.Contains("_thumb_" + att.AttOriginId))
+                if (textField.Contains(fileName) || textField.IndexOf(encodedFileName, StringComparison.OrdinalIgnoreCase) >= 0 || textField.Contains("_thumb_" + att.AttOriginId) || textField.Contains(att.AttOriginId))
                 {
                     var tfsAtt = IdentifyAttachment(att, wi, isAttachmentMigratedDelegate);
 

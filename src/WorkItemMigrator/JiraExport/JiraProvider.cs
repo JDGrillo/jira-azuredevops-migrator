@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using Atlassian.Jira;
@@ -86,6 +87,11 @@ namespace JiraExport
             return _jiraServiceWrapper.Issues.GetCommentsAsync(itemKey).Result;
         }
 
+        public IEnumerable<Worklog> GetWorklogsByItemKey(string itemKey)
+        {
+            return _jiraServiceWrapper.Issues.GetWorklogsAsync(itemKey).Result;
+        }
+
         public bool GetCustomField(string fieldName, out CustomField customField)
         {
             bool found = _jiraServiceWrapper.RestClient.Settings.Cache.CustomFields.TryGetValue(fieldName, out CustomField cF);
@@ -144,6 +150,7 @@ namespace JiraExport
                 {
                     try
                     {
+                        att.Filename = Regex.Replace(att.Filename.Trim(), "[^A-Za-z0-9_. ]+", "");
                         var path = Path.Combine(Settings.AttachmentsDir, att.Id, att.Filename);
                         EnsurePath(path);
 
@@ -338,6 +345,7 @@ namespace JiraExport
 
                 foreach (var remoteAtt in attChanges)
                 {
+                    remoteAtt.Value.Filename = Regex.Replace(remoteAtt.Value.Filename.Trim(), "[^A-Za-z0-9_. ]+", "");
                     var jiraAtt = await DownloadAttachmentAsync(remoteAtt.Value);
                     if (jiraAtt != null && !string.IsNullOrWhiteSpace(jiraAtt.LocalPath))
                     {

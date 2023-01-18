@@ -1,4 +1,5 @@
 ﻿using Common.Config;
+using Markdig;
 using Migration.Common;
 using Migration.Common.Log;
 using Migration.WIContract;
@@ -86,7 +87,13 @@ namespace JiraExport
 
             sourceField = SetCustomFieldName(sourceField, isCustomField, customFieldName);
 
-            var fieldName = sourceField + "$Rendered";
+            var fieldName = "";
+
+            if (r.Index == 0 || sourceField == "comment")
+                fieldName = sourceField + "$Rendered";
+            else
+                fieldName = sourceField;
+
 
             var targetWit = (from t in config.TypeMap.Types where t.Source == r.Type select t.Target).FirstOrDefault();
 
@@ -108,9 +115,21 @@ namespace JiraExport
                     return (true, mappedValue);
                 }
             }
-            value = CorrectRenderedHtmlvalue(value, r);
+            if (r.Index == 0 || sourceField == "comment")
+            {
+                value = CorrectRenderedHtmlvalue(value, r);
+            }
+
+            else
+            {
+                var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+                var result = Markdown.ToHtml((string)value, pipeline);
+                value = CorrectRenderedHtmlvalue(result, r);
+            }
+
 
             return (true, value);
+
         }
 
 
@@ -135,11 +154,13 @@ namespace JiraExport
             if (components == null)
                 throw new ArgumentNullException(nameof(components));
 
-            if (string.IsNullOrWhiteSpace(components))
-                return "Birth";
+            //if (string.IsNullOrWhiteSpace(components))
+            //    return "Birth";
+            //return "";
 
             //var tags = components.Replace(' ', '_');
-            var tags = components + ";Birth";
+            //var tags = components + ";Birth";
+            var tags = components;
             if (!tags.Any())
                 return string.Empty;
             else

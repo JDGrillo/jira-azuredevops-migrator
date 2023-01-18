@@ -25,6 +25,8 @@ namespace JiraExport
 
         IEnumerable<Comment> GetCommentsByItemKey(string itemKey);
 
+        IEnumerable<Worklog> GetWorklogsByItemKey(string itemKey);
+
         bool GetCustomField(string fieldName, out CustomField customField);
 
         bool GetCustomFieldSerializer(string customType, out ICustomFieldValueSerializer serializer);

@@ -132,12 +132,16 @@ namespace JiraExport
             var linkActions = links.Select(l => new RevisionAction<JiraLink>() { ChangeType = RevisionChangeType.Added, Value = l }).ToList();
             var fieldActions = fields;
 
-            var firstRevision = new JiraRevision(jiraItem) { Time = createdOn, Author = reporter, AttachmentActions = attActions, Fields = fieldActions, LinkActions = linkActions };
+            var firstRevision = new JiraRevision(jiraItem) { Time = createdOn.AddDays(-1), Author = reporter, AttachmentActions = attActions, Fields = fieldActions, LinkActions = linkActions };
             revisions.Push(firstRevision);
             var listOfRevisions = revisions.ToList();
 
             List<JiraRevision> commentRevisions = BuildCommentRevisions(jiraItem, jiraProvider);
             listOfRevisions.AddRange(commentRevisions);
+            listOfRevisions.Sort();
+
+            List<JiraRevision> worklogRevisions = BuildWorklogRevisions(jiraItem, jiraProvider);
+            listOfRevisions.AddRange(worklogRevisions);
             listOfRevisions.Sort();
 
             foreach (var revAndI in listOfRevisions.Select((r, i) => (r, i)))
@@ -154,6 +158,17 @@ namespace JiraExport
             {
                 var rc = renderedFields.SelectToken($"$.[{i}].body");
                 return BuildCommentRevision(c, rc, jiraItem);
+            }).ToList();
+        }
+
+        private static List<JiraRevision> BuildWorklogRevisions(JiraItem jiraItem, IJiraProvider jiraProvider)
+        {
+            var renderedFields = jiraItem.RemoteIssue.SelectToken("$.renderedFields.worklog.worklogs");
+            var worklogs = jiraProvider.GetWorklogsByItemKey(jiraItem.Key);
+            return worklogs.Select((c, i) =>
+            {
+                var rc = renderedFields.SelectToken($"$.[{i}].comment");
+                return BuildWorklogRevision(c, rc, jiraItem);
             }).ToList();
         }
 
@@ -181,6 +196,40 @@ namespace JiraExport
                 Author = author,
                 Time = c.CreatedDate.Value,
                 Fields = new Dictionary<string, object>() { { "comment", c.Body }, { "comment$Rendered", rc.Value<string>() } },
+                AttachmentActions = new List<RevisionAction<JiraAttachment>>(),
+                LinkActions = new List<RevisionAction<JiraLink>>()
+            };
+        }
+
+        private static JiraRevision BuildWorklogRevision(Worklog c, JToken rc, JiraItem jiraItem)
+        {
+            var author = "NoAuthorDefined";
+            if (c.AuthorUser is null)
+            {
+                Logger.Log(LogLevel.Warning, $"c.AuthorUser is null in comment revision for jiraItem.Key: '{jiraItem.Key}'. Using NoAuthorDefined as author. ");
+            }
+            else
+            {
+                if (c.AuthorUser.Username is null)
+                {
+                    author = GetAuthorIdentityOrDefault(c.AuthorUser.AccountId);
+                }
+                else
+                {
+                    author = c.AuthorUser.Username;
+                }
+            }
+            var rcVal = "";
+            if (rc == null)
+                rcVal = "<p>logged " + c.TimeSpent + "</p>";
+            else
+                rcVal = "<p>logged " + c.TimeSpent + "</p>\n\t" + rc.Value<string>();
+
+            return new JiraRevision(jiraItem)
+            {
+                Author = author,
+                Time = c.CreateDate.Value,
+                Fields = new Dictionary<string, object>() { { "comment", c.TimeSpent + c.Comment }, { "comment$Rendered", rcVal } },
                 AttachmentActions = new List<RevisionAction<JiraAttachment>>(),
                 LinkActions = new List<RevisionAction<JiraLink>>()
             };
@@ -253,7 +302,10 @@ namespace JiraExport
                 from = item.FromString;
                 to = item.ToString;
             }
-
+            if (to == null)
+            {
+                to = "";
+            }
             return (fieldId, from, to);
         }
 
@@ -417,8 +469,8 @@ namespace JiraExport
                 else if (prop.Name == "components")
                 {
                     value = string.Join(";", prop.Value.Select(st => st.ExValue<string>("$.name")).ToList());
-                    if (value == "")
-                        value = "Birth";
+                    //if (value == "")
+                    //    value = "Birth";
                 }
 
                 if (value != null)
